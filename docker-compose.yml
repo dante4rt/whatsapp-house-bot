@@ -1,0 +1,131 @@
+version: '3.8'
+
+services:
+  # ============================================
+  # N8N - Workflow Automation
+  # ============================================
+  n8n:
+    image: n8nio/n8n:latest
+    container_name: n8n
+    restart: always
+    ports:
+      - "5678:5678"
+    environment:
+      - N8N_HOST=0.0.0.0
+      - N8N_PORT=5678
+      - N8N_PROTOCOL=http
+      # IMPORTANT: Change YOUR_VPS_IP to your actual VPS IP
+      - WEBHOOK_URL=http://YOUR_VPS_IP:5678/
+      - N8N_BASIC_AUTH_ACTIVE=true
+      - N8N_BASIC_AUTH_USER=admin
+      # IMPORTANT: Change this password!
+      - N8N_BASIC_AUTH_PASSWORD=YourSecurePassword123!
+      - GENERIC_TIMEZONE=Asia/Jakarta
+      - TZ=Asia/Jakarta
+      # API Keys (will be set later)
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - EVOLUTION_API_KEY=${EVOLUTION_API_KEY}
+    volumes:
+      - n8n_data:/home/node/.n8n
+    networks:
+      - bot-network
+    depends_on:
+      - evolution
+
+  # ============================================
+  # Evolution API - WhatsApp Gateway (FREE)
+  # ============================================
+  evolution:
+    image: atendai/evolution-api:latest
+    container_name: evolution-api
+    restart: always
+    ports:
+      - "8080:8080"
+    environment:
+      # IMPORTANT: Change YOUR_VPS_IP to your actual VPS IP
+      - SERVER_URL=http://YOUR_VPS_IP:8080
+      # IMPORTANT: Generate with: openssl rand -hex 32
+      - AUTHENTICATION_API_KEY=${EVOLUTION_API_KEY}
+      - AUTHENTICATION_EXPOSE_IN_FETCH_INSTANCES=true
+      - QRCODE_LIMIT=10
+      # Webhook settings
+      - WEBHOOK_GLOBAL_ENABLED=false
+      - WEBHOOK_GLOBAL_URL=
+      - WEBHOOK_GLOBAL_WEBHOOK_BY_EVENTS=false
+      # Session settings
+      - CONFIG_SESSION_PHONE_CLIENT=HouseBot
+      - CONFIG_SESSION_PHONE_NAME=Chrome
+      # Database settings
+      - DATABASE_ENABLED=true
+      - DATABASE_PROVIDER=postgresql
+      - DATABASE_CONNECTION_URI=postgresql://postgres:postgres@postgres:5432/evolution
+      - DATABASE_CONNECTION_CLIENT_NAME=evolution
+      - DATABASE_SAVE_DATA_INSTANCE=true
+      - DATABASE_SAVE_DATA_NEW_MESSAGE=true
+      - DATABASE_SAVE_MESSAGE_UPDATE=true
+      - DATABASE_SAVE_DATA_CONTACTS=true
+      - DATABASE_SAVE_DATA_CHATS=true
+      # Redis cache
+      - CACHE_REDIS_ENABLED=true
+      - CACHE_REDIS_URI=redis://redis:6379
+      - CACHE_LOCAL_ENABLED=false
+    volumes:
+      - evolution_instances:/evolution/instances
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - bot-network
+
+  # ============================================
+  # PostgreSQL - Database for Evolution API
+  # ============================================
+  postgres:
+    image: postgres:15-alpine
+    container_name: postgres
+    restart: always
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=evolution
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - bot-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ============================================
+  # Redis - Cache for Evolution API
+  # ============================================
+  redis:
+    image: redis:7-alpine
+    container_name: redis
+    restart: always
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    networks:
+      - bot-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  n8n_data:
+    driver: local
+  evolution_instances:
+    driver: local
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+
+networks:
+  bot-network:
+    driver: bridge

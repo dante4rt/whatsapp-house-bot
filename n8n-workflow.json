@@ -1,0 +1,435 @@
+{
+  "name": "WhatsApp House Bot",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "whatsapp-incoming",
+        "options": {}
+      },
+      "id": "1f1e6b5a-1234-5678-abcd-webhook12345",
+      "name": "WhatsApp Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 300],
+      "webhookId": "whatsapp-incoming"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "condition-group-chat",
+              "leftValue": "={{ $json.data.key.remoteJid }}",
+              "rightValue": "@g.us",
+              "operator": {
+                "type": "string",
+                "operation": "contains"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "2f2e6b5a-1234-5678-abcd-filter12345",
+      "name": "Filter Group Only",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "has-message",
+              "leftValue": "={{ $json.data.message }}",
+              "rightValue": "",
+              "operator": {
+                "type": "object",
+                "operation": "notEmpty"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "3f3e6b5a-1234-5678-abcd-hasmsg12345",
+      "name": "Has Message Content",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [680, 240]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extract message data from Evolution API webhook\nconst input = $input.first().json;\n\nlet messageText = '';\nlet messageType = 'text';\nlet mediaUrl = '';\n\nconst data = input.data || input;\nconst message = data.message || {};\n\n// Extract text from different message types\nif (message.conversation) {\n  messageText = message.conversation;\n} else if (message.extendedTextMessage) {\n  messageText = message.extendedTextMessage.text || '';\n  // Check for URLs\n  if (message.extendedTextMessage.matchedText) {\n    mediaUrl = message.extendedTextMessage.matchedText;\n  }\n} else if (message.imageMessage) {\n  messageType = 'image';\n  messageText = message.imageMessage.caption || '[Image]';\n} else if (message.videoMessage) {\n  messageType = 'video';\n  messageText = message.videoMessage.caption || '[Video]';\n} else if (message.documentMessage) {\n  messageType = 'document';\n  messageText = message.documentMessage.fileName || '[Document]';\n}\n\n// Extract sender info\nconst remoteJid = data.key?.remoteJid || '';\nconst participant = data.key?.participant || data.key?.remoteJid || '';\nconst pushName = data.pushName || 'Unknown';\n\n// Extract URLs from message\nconst urlRegex = /(https?:\\/\\/[^\\s]+)/gi;\nconst urls = messageText.match(urlRegex) || [];\n\n// Check if message is property-related (Indonesian keywords)\nconst propertyKeywords = [\n  'rumah', 'house', 'properti', 'property',\n  'harga', 'price', 'jual', 'dp', 'cicilan',\n  'lb', 'lt', 'luas', 'kamar', 'km', 'kt',\n  'cluster', 'type', 'tipe', 'subsidi',\n  'kredit', 'kpr', 'booking', 'fee',\n  'simulasi', 'perumahan', 'developer',\n  'mandi', 'tidur', 'lantai'\n];\n\nconst isPropertyRelated = propertyKeywords.some(keyword => \n  messageText.toLowerCase().includes(keyword)\n) || urls.some(url => \n  url.includes('tiktok') || \n  url.includes('youtube') || \n  url.includes('instagram') ||\n  url.includes('youtu.be')\n);\n\nreturn {\n  timestamp: new Date().toISOString(),\n  date: new Date().toLocaleDateString('id-ID'),\n  sender: pushName,\n  senderJid: participant,\n  groupJid: remoteJid,\n  messageType: messageType,\n  messageText: messageText,\n  urls: urls,\n  hasUrl: urls.length > 0,\n  isPropertyRelated: isPropertyRelated,\n  rawMessage: message\n};"
+      },
+      "id": "4f4e6b5a-1234-5678-abcd-extract12345",
+      "name": "Extract Message Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [900, 240]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "is-property",
+              "leftValue": "={{ $json.isPropertyRelated }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "5f5e6b5a-1234-5678-abcd-isprop12345",
+      "name": "Is Property Related?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1120, 240]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={{ $env.GEMINI_API_KEY }}",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"contents\": [{\n    \"parts\": [{\n      \"text\": \"Kamu adalah asisten yang mengekstrak informasi properti dari pesan WhatsApp dalam bahasa Indonesia.\\n\\nAnalisis pesan berikut dan ekstrak informasi properti. Kembalikan HANYA dalam format JSON yang valid, tanpa markdown, tanpa backticks, tanpa penjelasan lain.\\n\\nPesan:\\n{{ $json.messageText }}\\n\\n{{ $json.hasUrl ? 'URL ditemukan: ' + $json.urls.join(', ') : '' }}\\n\\nKembalikan JSON dengan struktur ini (isi dengan string kosong jika tidak ada info):\\n{\\n  \\\"property_name\\\": \\\"\\\",\\n  \\\"developer\\\": \\\"\\\",\\n  \\\"lb\\\": \\\"\\\",\\n  \\\"lt\\\": \\\"\\\",\\n  \\\"bedrooms\\\": \\\"\\\",\\n  \\\"bathrooms\\\": \\\"\\\",\\n  \\\"price\\\": \\\"\\\",\\n  \\\"dp\\\": \\\"\\\",\\n  \\\"monthly\\\": \\\"\\\",\\n  \\\"video_url\\\": \\\"\\\",\\n  \\\"location\\\": \\\"\\\",\\n  \\\"notes\\\": \\\"\\\"\\n}\\n\\nPetunjuk ekstraksi:\\n- LB = Luas Bangunan (dalam m2)\\n- LT = Luas Tanah (dalam m2), kadang ditulis dimensi seperti 6x12\\n- Kamar Tidur/KT = bedrooms (angka saja)\\n- Kamar Mandi/KM = bathrooms (angka saja)\\n- Harga/Harga Jual/Price = price (format Rupiah lengkap)\\n- DP/Down Payment/Uang Muka = dp\\n- Cicilan/Angsuran = monthly\\n- Link TikTok/YouTube/Instagram = video_url\\n- Nama cluster/perumahan/type = property_name\\n- Nama developer/pengembang = developer\\n- Subsidi, promo, free PPN = masukkan ke notes\"\n    }]\n  }],\n  \"generationConfig\": {\n    \"temperature\": 0.1,\n    \"maxOutputTokens\": 1024\n  }\n}"
+      },
+      "id": "6f6e6b5a-1234-5678-abcd-gemini12345",
+      "name": "Gemini AI Extract",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1340, 180]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse Gemini response and combine with original data\nconst input = $input.first().json;\nconst originalData = $('Extract Message Data').first().json;\n\nlet extractedData = {\n  property_name: '',\n  developer: '',\n  lb: '',\n  lt: '',\n  bedrooms: '',\n  bathrooms: '',\n  price: '',\n  dp: '',\n  monthly: '',\n  video_url: '',\n  location: '',\n  notes: ''\n};\n\ntry {\n  // Get text from Gemini response\n  const responseText = input.candidates?.[0]?.content?.parts?.[0]?.text || '';\n  \n  // Extract JSON from response (handle markdown code blocks)\n  let jsonStr = responseText.trim();\n  \n  // Remove markdown code blocks if present\n  const jsonMatch = responseText.match(/```(?:json)?\\s*([\\s\\S]*?)```/);\n  if (jsonMatch) {\n    jsonStr = jsonMatch[1].trim();\n  }\n  \n  // Try to find JSON object in the response\n  const jsonObjectMatch = jsonStr.match(/\\{[\\s\\S]*\\}/);\n  if (jsonObjectMatch) {\n    jsonStr = jsonObjectMatch[0];\n  }\n  \n  // Parse JSON\n  extractedData = JSON.parse(jsonStr);\n} catch (error) {\n  extractedData.notes = 'Parse error - Raw: ' + originalData.messageText.substring(0, 200);\n}\n\n// If no video_url extracted but we have URLs, use the first video URL\nif (!extractedData.video_url && originalData.urls && originalData.urls.length > 0) {\n  const videoUrl = originalData.urls.find(url => \n    url.includes('tiktok') || \n    url.includes('youtube') || \n    url.includes('youtu.be') ||\n    url.includes('instagram')\n  );\n  if (videoUrl) {\n    extractedData.video_url = videoUrl;\n  }\n}\n\nreturn {\n  timestamp: originalData.timestamp,\n  date: originalData.date,\n  sender: originalData.sender,\n  property_name: extractedData.property_name || '',\n  developer: extractedData.developer || '',\n  lb: extractedData.lb || '',\n  lt: extractedData.lt || '',\n  bedrooms: extractedData.bedrooms || '',\n  bathrooms: extractedData.bathrooms || '',\n  price: extractedData.price || '',\n  dp: extractedData.dp || '',\n  monthly: extractedData.monthly || '',\n  video_url: extractedData.video_url || '',\n  location: extractedData.location || '',\n  notes: extractedData.notes || '',\n  original_message: originalData.messageText\n};"
+      },
+      "id": "7f7e6b5a-1234-5678-abcd-parse12345",
+      "name": "Parse Gemini Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1560, 180]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_GOOGLE_SHEET_ID_HERE",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Properties",
+          "mode": "list",
+          "cachedResultName": "Properties"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Timestamp": "={{ $json.timestamp }}",
+            "Date": "={{ $json.date }}",
+            "Sender": "={{ $json.sender }}",
+            "Property Name": "={{ $json.property_name }}",
+            "Developer": "={{ $json.developer }}",
+            "LB (m2)": "={{ $json.lb }}",
+            "LT (m2)": "={{ $json.lt }}",
+            "Bedrooms": "={{ $json.bedrooms }}",
+            "Bathrooms": "={{ $json.bathrooms }}",
+            "Price": "={{ $json.price }}",
+            "DP": "={{ $json.dp }}",
+            "Monthly": "={{ $json.monthly }}",
+            "Video URL": "={{ $json.video_url }}",
+            "Location": "={{ $json.location }}",
+            "Notes": "={{ $json.notes }}"
+          }
+        },
+        "options": {}
+      },
+      "id": "8f8e6b5a-1234-5678-abcd-sheets12345",
+      "name": "Save to Google Sheets",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.4,
+      "position": [1780, 180]
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 20 * * *"
+            }
+          ]
+        }
+      },
+      "id": "9f9e6b5a-1234-5678-abcd-daily12345",
+      "name": "Daily 8PM Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [240, 560]
+    },
+    {
+      "parameters": {
+        "operation": "read",
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_GOOGLE_SHEET_ID_HERE",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Properties",
+          "mode": "list",
+          "cachedResultName": "Properties"
+        },
+        "options": {}
+      },
+      "id": "af1e6b5a-1234-5678-abcd-read12345",
+      "name": "Read All Properties",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.4,
+      "position": [460, 560]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Filter today's properties and create recap message\nconst items = $input.all();\nconst today = new Date().toLocaleDateString('id-ID');\n\n// Filter today's entries\nconst todayProperties = items.filter(item => \n  item.json.Date === today || item.json['Date'] === today\n);\n\nif (todayProperties.length === 0) {\n  return { hasData: false, message: 'Tidak ada properti baru hari ini.' };\n}\n\n// Build recap message\nlet message = `📊 *REKAP PROPERTI HARI INI*\\n`;\nmessage += `📅 ${today}\\n\\n`;\nmessage += `🏠 *${todayProperties.length} properti baru ditambahkan:*\\n\\n`;\n\ntodayProperties.forEach((prop, index) => {\n  const p = prop.json;\n  message += `━━━━━━━━━━━━━━━━\\n`;\n  message += `*${index + 1}. ${p['Property Name'] || 'Unnamed'}*\\n`;\n  if (p.Developer) message += `🏗️ ${p.Developer}\\n`;\n  if (p['LB (m2)'] || p['LT (m2)']) {\n    message += `📐 LB/LT: ${p['LB (m2)'] || '-'}/${p['LT (m2)'] || '-'} m²\\n`;\n  }\n  if (p.Bedrooms || p.Bathrooms) {\n    message += `🛏️ ${p.Bedrooms || '-'} KT / ${p.Bathrooms || '-'} KM\\n`;\n  }\n  if (p.Price) message += `💰 ${p.Price}\\n`;\n  if (p.DP && p.DP !== '') message += `💵 DP: ${p.DP}\\n`;\n  if (p.Monthly && p.Monthly !== '') message += `📆 Cicilan: ${p.Monthly}\\n`;\n  if (p['Video URL'] && p['Video URL'] !== '') message += `🎬 ${p['Video URL']}\\n`;\n  if (p.Location && p.Location !== '') message += `📍 ${p.Location}\\n`;\n  message += `👤 by ${p.Sender}\\n`;\n});\n\nmessage += `\\n━━━━━━━━━━━━━━━━\\n`;\nmessage += `📋 *Total database: ${items.length} properti*`;\n\nreturn {\n  hasData: true,\n  message: message,\n  count: todayProperties.length,\n  totalCount: items.length\n};"
+      },
+      "id": "bf2e6b5a-1234-5678-abcd-recap12345",
+      "name": "Create Recap Message",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [680, 560]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "has-data",
+              "leftValue": "={{ $json.hasData }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "cf3e6b5a-1234-5678-abcd-check12345",
+      "name": "Has Data to Recap?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [900, 560]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://evolution:8080/message/sendText/house-bot",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{ $env.EVOLUTION_API_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"number\": \"YOUR_GROUP_JID_HERE\",\n  \"text\": {{ JSON.stringify($json.message) }}\n}"
+      },
+      "id": "df4e6b5a-1234-5678-abcd-send12345",
+      "name": "Send Recap to WhatsApp",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1120, 500]
+    },
+    {
+      "parameters": {},
+      "id": "ef5e6b5a-1234-5678-abcd-noop12345",
+      "name": "No Data Today",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [1120, 620]
+    }
+  ],
+  "connections": {
+    "WhatsApp Webhook": {
+      "main": [
+        [
+          {
+            "node": "Filter Group Only",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter Group Only": {
+      "main": [
+        [
+          {
+            "node": "Has Message Content",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Has Message Content": {
+      "main": [
+        [
+          {
+            "node": "Extract Message Data",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Extract Message Data": {
+      "main": [
+        [
+          {
+            "node": "Is Property Related?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Property Related?": {
+      "main": [
+        [
+          {
+            "node": "Gemini AI Extract",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Gemini AI Extract": {
+      "main": [
+        [
+          {
+            "node": "Parse Gemini Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Gemini Response": {
+      "main": [
+        [
+          {
+            "node": "Save to Google Sheets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Daily 8PM Trigger": {
+      "main": [
+        [
+          {
+            "node": "Read All Properties",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read All Properties": {
+      "main": [
+        [
+          {
+            "node": "Create Recap Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Recap Message": {
+      "main": [
+        [
+          {
+            "node": "Has Data to Recap?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has Data to Recap?": {
+      "main": [
+        [
+          {
+            "node": "Send Recap to WhatsApp",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "No Data Today",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Asia/Jakarta"
+  },
+  "staticData": null,
+  "tags": [],
+  "triggerCount": 2,
+  "pinData": {}
+}
