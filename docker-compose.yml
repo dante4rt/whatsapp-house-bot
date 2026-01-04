@@ -30,7 +30,9 @@ services:
       - N8N_PORT=5678
       - N8N_PROTOCOL=http
       - N8N_SECURE_COOKIE=false
-      - WEBHOOK_URL=http://YOUR_VPS_IP:5678/
+      - N8N_EDITOR_BASE_URL=http://38.242.251.179:5678
+      - WEBHOOK_URL=http://38.242.251.179:5678/
+      - N8N_DIAGNOSTICS_ENABLED=false
       - GENERIC_TIMEZONE=Asia/Jakarta
       - TZ=Asia/Jakarta
       - GEMINI_API_KEY=${GEMINI_API_KEY}
