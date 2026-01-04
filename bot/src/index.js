@@ -11,7 +11,42 @@ import { config } from "dotenv";
 config();
 
 const GROUP_NAME = process.env.GROUP_NAME || "House Hunting";
+const QUEUE_INTERVAL = parseInt(process.env.QUEUE_INTERVAL) || 30000; // 30 seconds default
 const logger = pino({ level: "silent" });
+
+const messageQueue = [];
+let queueTimer = null;
+
+async function processQueue() {
+  if (messageQueue.length === 0) return;
+
+  const webhookUrl = process.env.WEBHOOK_URL;
+  if (!webhookUrl) return;
+
+  const messages = [...messageQueue];
+  messageQueue.length = 0;
+
+  console.log(`\n📤 Processing ${messages.length} queued messages...`);
+
+  for (const payload of messages) {
+    try {
+      await fetch(webhookUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+    } catch (err) {
+      console.log(`✗ Failed to send: ${err.message}`);
+    }
+  }
+
+  console.log("✓ Queue processed\n");
+}
+
+function startQueueTimer() {
+  if (queueTimer) clearInterval(queueTimer);
+  queueTimer = setInterval(processQueue, QUEUE_INTERVAL);
+}
 
 async function startBot() {
   const { state, saveCreds } = await useMultiFileAuthState("./auth");
@@ -55,6 +90,8 @@ async function startBot() {
       console.log(
         `📋 Listening for messages in groups containing: "${GROUP_NAME}"`
       );
+      console.log(`⏱️  Queue interval: ${QUEUE_INTERVAL / 1000}s\n`);
+      startQueueTimer();
     }
   });
 
@@ -131,34 +168,22 @@ async function startBot() {
           }`
         );
 
-        // Send to n8n webhook
-        const webhookUrl = process.env.WEBHOOK_URL;
-        if (webhookUrl) {
-          try {
-            const payload = {
-              group: groupMeta.subject,
-              sender: senderName,
-              text,
-              timestamp: msg.messageTimestamp,
-              messageType,
-              mediaUrl,
-            };
+        // Queue message
+        const payload = {
+          group: groupMeta.subject,
+          sender: senderName,
+          text,
+          timestamp: msg.messageTimestamp,
+          messageType,
+          mediaUrl,
+        };
 
-            // Include base64 image if available
-            if (imageBase64) {
-              payload.imageBase64 = imageBase64;
-            }
-
-            await fetch(webhookUrl, {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify(payload),
-            });
-            console.log("✓ Sent to n8n");
-          } catch (err) {
-            console.log("✗ Failed to send to n8n:", err.message);
-          }
+        if (imageBase64) {
+          payload.imageBase64 = imageBase64;
         }
+
+        messageQueue.push(payload);
+        console.log(`📝 Queued (${messageQueue.length} pending)`);
       } catch (err) {
         // Group metadata fetch failed, skip
       }
