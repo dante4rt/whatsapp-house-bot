@@ -102,6 +102,7 @@ services:
       - EVOLUTION_API_KEY=${EVOLUTION_API_KEY}
     volumes:
       - n8n_data:/home/node/.n8n
+      - ./scripts:/home/node/.n8n/scripts
     networks:
       - bot-network
     depends_on:
