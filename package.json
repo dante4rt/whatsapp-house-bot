@@ -2,6 +2,8 @@
   "name": "whatsapp-house-bot",
   "version": "1.0.0",
   "type": "module",
+  "description": "WhatsApp bot that listens to group chats for house hunting info",
+  "main": "src/index.js",
   "scripts": {
     "start": "node src/index.js",
     "dev": "node --watch src/index.js"

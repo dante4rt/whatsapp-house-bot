@@ -1,14 +1,12 @@
 services:
-  # ============================================
-  # WhatsApp Bot (Baileys - Latest Version)
-  # ============================================
   whatsapp:
-    build: ./bot
+    build: .
     container_name: whatsapp-bot
     restart: always
     environment:
       - GROUP_NAME=${GROUP_NAME:-House Hunting}
-      - WEBHOOK_URL=http://n8n:5678/webhook/whatsapp
+      - WEBHOOK_URL=${WEBHOOK_URL:-}
+      - QUEUE_INTERVAL=${QUEUE_INTERVAL:-30000}
     volumes:
       - whatsapp_auth:/app/auth
     networks:
@@ -16,36 +14,8 @@ services:
     stdin_open: true
     tty: true
 
-  # ============================================
-  # N8N - Workflow Automation
-  # ============================================
-  n8n:
-    image: n8nio/n8n:latest
-    container_name: n8n
-    restart: always
-    ports:
-      - "5678:5678"
-    environment:
-      - N8N_HOST=0.0.0.0
-      - N8N_PORT=5678
-      - N8N_PROTOCOL=http
-      - N8N_SECURE_COOKIE=false
-      - N8N_EDITOR_BASE_URL=http://38.242.251.179:5678
-      - WEBHOOK_URL=http://38.242.251.179:5678/
-      - N8N_DIAGNOSTICS_ENABLED=false
-      - GENERIC_TIMEZONE=Asia/Jakarta
-      - TZ=Asia/Jakarta
-      - GEMINI_API_KEY=${GEMINI_API_KEY}
-    volumes:
-      - n8n_data:/home/node/.n8n
-      - ./scripts:/home/node/.n8n/scripts
-    networks:
-      - bot-network
-
 volumes:
   whatsapp_auth:
-    driver: local
-  n8n_data:
     driver: local
 
 networks:
