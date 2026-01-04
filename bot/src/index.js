@@ -2,6 +2,7 @@ import makeWASocket, {
   DisconnectReason,
   useMultiFileAuthState,
   fetchLatestBaileysVersion,
+  downloadMediaMessage,
 } from "@whiskeysockets/baileys";
 import pino from "pino";
 import qrcode from "qrcode-terminal";
@@ -88,7 +89,7 @@ async function startBot() {
         if (msg.message.imageMessage) {
           messageType = "image";
           try {
-            const buffer = await sock.downloadMediaMessage(msg);
+            const buffer = await downloadMediaMessage(msg, "buffer", {});
             imageBase64 = buffer.toString("base64");
           } catch (e) {
             console.log("Failed to download image:", e.message);
