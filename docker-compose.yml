@@ -1,6 +1,21 @@
-version: "3.8"
-
 services:
+  # ============================================
+  # WhatsApp Bot (Baileys - Latest Version)
+  # ============================================
+  whatsapp:
+    build: ./bot
+    container_name: whatsapp-bot
+    restart: always
+    environment:
+      - GROUP_NAME=${GROUP_NAME:-House Hunting}
+      - WEBHOOK_URL=http://n8n:5678/webhook/whatsapp
+    volumes:
+      - whatsapp_auth:/app/auth
+    networks:
+      - bot-network
+    stdin_open: true
+    tty: true
+
   # ============================================
   # N8N - Workflow Automation
   # ============================================
@@ -14,100 +29,20 @@ services:
       - N8N_HOST=0.0.0.0
       - N8N_PORT=5678
       - N8N_PROTOCOL=http
-      # IMPORTANT: Change YOUR_VPS_IP to your actual VPS IP
       - WEBHOOK_URL=http://YOUR_VPS_IP:5678/
-      - N8N_BASIC_AUTH_ACTIVE=true
-      - N8N_BASIC_AUTH_USER=admin
-      # IMPORTANT: Change this password!
-      - N8N_BASIC_AUTH_PASSWORD=YourSecurePassword123!
       - GENERIC_TIMEZONE=Asia/Jakarta
       - TZ=Asia/Jakarta
-      # API Keys (will be set later)
       - GEMINI_API_KEY=${GEMINI_API_KEY}
-      - EVOLUTION_API_KEY=${EVOLUTION_API_KEY}
     volumes:
       - n8n_data:/home/node/.n8n
       - ./scripts:/home/node/.n8n/scripts
     networks:
       - bot-network
-    depends_on:
-      - evolution
-
-  # ============================================
-  # Evolution API - WhatsApp Gateway
-  # ============================================
-  evolution:
-    image: atendai/evolution-api:homolog
-    container_name: evolution-api
-    restart: always
-    ports:
-      - "8080:8080"
-    environment:
-      - SERVER_URL=http://YOUR_VPS_IP:8080
-      - AUTHENTICATION_API_KEY=${EVOLUTION_API_KEY}
-      - DATABASE_PROVIDER=postgresql
-      - DATABASE_CONNECTION_URI=postgresql://postgres:postgres@postgres:5432/evolution
-      - CACHE_REDIS_ENABLED=true
-      - CACHE_REDIS_URI=redis://redis:6379
-      - WA_VERSION=2.3000.1017373011
-      - WA_BUSINESS_VERSION=2.3000.1017373011
-    volumes:
-      - evolution_instances:/evolution/instances
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    networks:
-      - bot-network
-
-  # ============================================
-  # PostgreSQL - Database for Evolution API
-  # ============================================
-  postgres:
-    image: postgres:15-alpine
-    container_name: postgres
-    restart: always
-    environment:
-      - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=postgres
-      - POSTGRES_DB=evolution
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    networks:
-      - bot-network
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
-  # ============================================
-  # Redis - Cache for Evolution API
-  # ============================================
-  redis:
-    image: redis:7-alpine
-    container_name: redis
-    restart: always
-    command: redis-server --appendonly yes
-    volumes:
-      - redis_data:/data
-    networks:
-      - bot-network
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
 
 volumes:
+  whatsapp_auth:
+    driver: local
   n8n_data:
-    driver: local
-  evolution_instances:
-    driver: local
-  postgres_data:
-    driver: local
-  redis_data:
     driver: local
 
 networks:

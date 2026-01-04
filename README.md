@@ -1,41 +1,34 @@
 # WhatsApp House Bot
 
-WhatsApp bot that extracts property info from group chats and saves to Google Sheets using AI.
+WhatsApp bot that listens to group chats for house hunting info and saves to Google Sheets via n8n.
 
 ## Setup
 
 ```bash
 # 1. Configure
 cp .env.example .env
-# Edit .env: set EVOLUTION_API_KEY (openssl rand -hex 32) and GEMINI_API_KEY
+# Edit GROUP_NAME and GEMINI_API_KEY
 
-# 2. Deploy (choose one)
-./deploy.sh              # Automated (recommended)
+# 2. Deploy
+./deploy.sh
 
-# OR manually:
-docker compose down -v
-docker compose up -d postgres redis && sleep 30
-docker compose up -d evolution && sleep 45
-docker compose up -d n8n
+# 3. Scan QR code
+docker logs whatsapp-bot -f
+# Scan the QR code with WhatsApp
 
-# 3. Connect WhatsApp
-source .env
-curl -s http://localhost:8080/instance/connect/house-bot -H "apikey: $EVOLUTION_API_KEY"
-# Scan QR code with WhatsApp
-
-# 4. Import workflow at http://YOUR_IP:5678
+# 4. Access n8n
+# http://YOUR_IP:5678
 ```
 
 ## Commands
 
 ```bash
-# Status
-docker compose ps
-curl -s http://localhost:8080/instance/connectionState/house-bot -H "apikey: $EVOLUTION_API_KEY"
+# View bot logs (and QR code)
+docker logs whatsapp-bot -f
 
-# Logs
-docker logs evolution-api -f
+# Restart
+docker compose restart whatsapp
 
-# Reset
+# Full reset (will need to scan QR again)
 docker compose down -v && ./deploy.sh
 ```
