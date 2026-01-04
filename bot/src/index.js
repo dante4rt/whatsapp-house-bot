@@ -84,7 +84,7 @@ async function startBot() {
         let mediaUrl = null;
         let imageBase64 = null;
 
-        // Check for image
+        // Priority 1: Check for image (even with caption)
         if (msg.message.imageMessage) {
           messageType = "image";
           try {
@@ -94,25 +94,25 @@ async function startBot() {
             console.log("Failed to download image:", e.message);
           }
         }
-
-        // Check for video
-        if (msg.message.videoMessage) {
+        // Priority 2: Check for video (even with caption)
+        else if (msg.message.videoMessage) {
           messageType = "video";
         }
-
-        // Check for links in text
-        const urlRegex = /(https?:\/\/[^\s]+)/g;
-        const urls = text.match(urlRegex);
-        if (urls && urls.length > 0) {
-          mediaUrl = urls[0];
-          if (
-            mediaUrl.includes("tiktok.com") ||
-            mediaUrl.includes("instagram.com") ||
-            mediaUrl.includes("youtube.com")
-          ) {
-            messageType = "video_link";
-          } else {
-            messageType = "link";
+        // Priority 3: Check for links in text (only if no image/video)
+        else {
+          const urlRegex = /(https?:\/\/[^\s]+)/g;
+          const urls = text.match(urlRegex);
+          if (urls && urls.length > 0) {
+            mediaUrl = urls[0];
+            if (
+              mediaUrl.includes("tiktok.com") ||
+              mediaUrl.includes("instagram.com") ||
+              mediaUrl.includes("youtube.com")
+            ) {
+              messageType = "video_link";
+            } else {
+              messageType = "link";
+            }
           }
         }
 
