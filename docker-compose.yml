@@ -49,6 +49,8 @@ services:
       - DATABASE_CONNECTION_URI=postgresql://postgres:postgres@postgres:5432/evolution
       - CACHE_REDIS_ENABLED=true
       - CACHE_REDIS_URI=redis://redis:6379
+      - WA_VERSION=2.3000.1017373011
+      - WA_BUSINESS_VERSION=2.3000.1017373011
     volumes:
       - evolution_instances:/evolution/instances
     depends_on:
