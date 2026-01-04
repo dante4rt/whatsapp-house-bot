@@ -34,10 +34,10 @@ services:
       - evolution
 
   # ============================================
-  # Evolution API Lite - WhatsApp Gateway (Updated Baileys)
+  # Evolution API - WhatsApp Gateway
   # ============================================
   evolution:
-    image: evolutionapi/evolution-api-lite:latest
+    image: atendai/evolution-api:v2.2.0
     container_name: evolution-api
     restart: always
     ports:
