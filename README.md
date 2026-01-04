@@ -1,48 +1,41 @@
 # WhatsApp House Bot
 
-A WhatsApp bot that automatically extracts property information from group messages and saves them to Google Sheets using AI.
+WhatsApp bot that extracts property info from group chats and saves to Google Sheets using AI.
 
-## Features
+## Setup
 
-- 🤖 Automated property extraction from WhatsApp messages
-- 📊 Store structured data in Google Sheets
-- 🧠 AI-powered information extraction with Gemini
-- 📈 Daily property recap messages
-- 🔧 Easy deployment with Docker
+```bash
+# 1. Configure
+cp .env.example .env
+# Edit .env: set EVOLUTION_API_KEY (openssl rand -hex 32) and GEMINI_API_KEY
 
-## Quick Start
+# 2. Deploy (choose one)
+./deploy.sh              # Automated (recommended)
 
-1. Clone this repository
-2. Copy `.env.example` to `.env` and fill in your values
-3. Run the setup script: `./setup.sh`
-4. Start services: `docker-compose up -d`
-5. Connect WhatsApp and import the workflow
+# OR manually:
+docker compose down -v
+docker compose up -d postgres redis && sleep 30
+docker compose up -d evolution && sleep 45
+docker compose up -d n8n
 
-## Architecture
+# 3. Connect WhatsApp
+source .env
+curl -s http://localhost:8080/instance/connect/house-bot -H "apikey: $EVOLUTION_API_KEY"
+# Scan QR code with WhatsApp
 
-```text
-WhatsApp Group → Evolution API → n8n → Gemini AI → Google Sheets
-                                      ↑
-                                      └── Daily Recap ←────────┘
+# 4. Import workflow at http://YOUR_IP:5678
 ```
 
-## Documentation
+## Commands
 
-- [User Guide](docs/users/README.md) - Setup and usage instructions
-- [Developer Guide](docs/developers/README.md) - Technical documentation
+```bash
+# Status
+docker compose ps
+curl -s http://localhost:8080/instance/connectionState/house-bot -H "apikey: $EVOLUTION_API_KEY"
 
-## Project Structure
+# Logs
+docker logs evolution-api -f
 
-```text
-├── docs/                 # Documentation
-│   ├── developers/       # Technical docs
-│   └── users/           # User guides
-├── scripts/             # Extracted JavaScript code
-├── docker-compose.yml   # Docker configuration
-├── n8n-workflow.json   # n8n workflow definition
-└── .env.example        # Environment variables template
+# Reset
+docker compose down -v && ./deploy.sh
 ```
-
-## License
-
-MIT

@@ -37,7 +37,7 @@ services:
   # Evolution API - WhatsApp Gateway (FREE)
   # ============================================
   evolution:
-    image: atendai/evolution-api:latest
+    image: atendai/evolution-api:v2.1.1
     container_name: evolution-api
     restart: always
     ports:
@@ -73,10 +73,18 @@ services:
     volumes:
       - evolution_instances:/evolution/instances
     depends_on:
-      - postgres
-      - redis
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     networks:
       - bot-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
 
   # ============================================
   # PostgreSQL - Database for Evolution API
