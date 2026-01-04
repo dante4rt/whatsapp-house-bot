@@ -88,8 +88,25 @@ async function startBot() {
           }`
         );
 
-        // TODO: Send to n8n webhook for processing
-        // await sendToWebhook({ group: groupMeta.subject, sender: senderName, text, timestamp: msg.messageTimestamp });
+        // Send to n8n webhook
+        const webhookUrl = process.env.WEBHOOK_URL;
+        if (webhookUrl) {
+          try {
+            await fetch(webhookUrl, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                group: groupMeta.subject,
+                sender: senderName,
+                text,
+                timestamp: msg.messageTimestamp,
+              }),
+            });
+            console.log("✓ Sent to n8n");
+          } catch (err) {
+            console.log("✗ Failed to send to n8n:", err.message);
+          }
+        }
       } catch (err) {
         // Group metadata fetch failed, skip
       }
