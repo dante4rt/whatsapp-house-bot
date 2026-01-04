@@ -71,19 +71,61 @@ async function startBot() {
         if (!groupMeta.subject.toLowerCase().includes(GROUP_NAME.toLowerCase()))
           continue;
 
+        // Extract text from various message types
         const text =
           msg.message.conversation ||
           msg.message.extendedTextMessage?.text ||
           msg.message.imageMessage?.caption ||
+          msg.message.videoMessage?.caption ||
           "";
 
-        if (!text) continue;
+        // Detect message type and media
+        let messageType = "text";
+        let mediaUrl = null;
+        let imageBase64 = null;
+
+        // Check for image
+        if (msg.message.imageMessage) {
+          messageType = "image";
+          try {
+            const buffer = await sock.downloadMediaMessage(msg);
+            imageBase64 = buffer.toString("base64");
+          } catch (e) {
+            console.log("Failed to download image:", e.message);
+          }
+        }
+
+        // Check for video
+        if (msg.message.videoMessage) {
+          messageType = "video";
+        }
+
+        // Check for links in text
+        const urlRegex = /(https?:\/\/[^\s]+)/g;
+        const urls = text.match(urlRegex);
+        if (urls && urls.length > 0) {
+          mediaUrl = urls[0];
+          if (
+            mediaUrl.includes("tiktok.com") ||
+            mediaUrl.includes("instagram.com") ||
+            mediaUrl.includes("youtube.com")
+          ) {
+            messageType = "video_link";
+          } else {
+            messageType = "link";
+          }
+        }
+
+        // Skip if no useful content
+        if (!text && !imageBase64) continue;
 
         const sender = msg.key.participant || msg.key.remoteJid;
         const senderName = msg.pushName || sender.split("@")[0];
 
         console.log(
-          `\n[${groupMeta.subject}] ${senderName}: ${text.substring(0, 100)}${
+          `\n[${
+            groupMeta.subject
+          }] ${senderName} (${messageType}): ${text.substring(0, 100)}${
             text.length > 100 ? "..." : ""
           }`
         );
@@ -92,15 +134,24 @@ async function startBot() {
         const webhookUrl = process.env.WEBHOOK_URL;
         if (webhookUrl) {
           try {
+            const payload = {
+              group: groupMeta.subject,
+              sender: senderName,
+              text,
+              timestamp: msg.messageTimestamp,
+              messageType,
+              mediaUrl,
+            };
+
+            // Include base64 image if available
+            if (imageBase64) {
+              payload.imageBase64 = imageBase64;
+            }
+
             await fetch(webhookUrl, {
               method: "POST",
               headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                group: groupMeta.subject,
-                sender: senderName,
-                text,
-                timestamp: msg.messageTimestamp,
-              }),
+              body: JSON.stringify(payload),
             });
             console.log("✓ Sent to n8n");
           } catch (err) {

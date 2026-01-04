@@ -1,45 +1,27 @@
 {
-  "name": "WhatsApp House Bot",
+  "name": "WhatsApp House Bot Enhanced",
   "nodes": [
     {
       "parameters": {
         "httpMethod": "POST",
-        "path": "whatsapp-incoming",
+        "path": "whatsapp",
+        "responseMode": "onReceived",
         "options": {}
       },
-      "id": "1f1e6b5a-1234-5678-abcd-webhook12345",
-      "name": "WhatsApp Webhook",
+      "id": "webhook",
+      "name": "Webhook",
       "type": "n8n-nodes-base.webhook",
-      "typeVersion": 2,
+      "typeVersion": 1.1,
       "position": [240, 300],
-      "webhookId": "whatsapp-incoming"
+      "webhookId": "whatsapp"
     },
     {
       "parameters": {
-        "conditions": {
-          "options": {
-            "caseSensitive": true,
-            "leftValue": "",
-            "typeValidation": "strict"
-          },
-          "conditions": [
-            {
-              "id": "condition-group-chat",
-              "leftValue": "={{ $json.data.key.remoteJid }}",
-              "rightValue": "@g.us",
-              "operator": {
-                "type": "string",
-                "operation": "contains"
-              }
-            }
-          ],
-          "combinator": "and"
-        },
-        "options": {}
+        "jsCode": "const body = $input.item.json.body;\n\nreturn [{\n  json: {\n    group: body.group,\n    sender: body.sender,\n    text: body.text || '',\n    timestamp: body.timestamp,\n    messageType: body.messageType || 'text',\n    mediaUrl: body.mediaUrl || null,\n    imageBase64: body.imageBase64 || null\n  }\n}];"
       },
-      "id": "2f2e6b5a-1234-5678-abcd-filter12345",
-      "name": "Filter Group Only",
-      "type": "n8n-nodes-base.if",
+      "id": "parse-input",
+      "name": "Parse Input",
+      "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [460, 300]
     },
@@ -47,56 +29,17 @@
       "parameters": {
         "conditions": {
           "options": {
-            "caseSensitive": false,
-            "leftValue": "",
-            "typeValidation": "loose"
-          },
-          "conditions": [
-            {
-              "id": "has-message",
-              "leftValue": "={{ $json.data.message }}",
-              "rightValue": "",
-              "operator": {
-                "type": "object",
-                "operation": "notEmpty"
-              }
-            }
-          ],
-          "combinator": "and"
-        },
-        "options": {}
-      },
-      "id": "3f3e6b5a-1234-5678-abcd-hasmsg12345",
-      "name": "Has Message Content",
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 2,
-      "position": [680, 240]
-    },
-    {
-      "parameters": {
-        "jsCode": "// Load external script for message extraction\nconst fs = require('fs');\nconst path = require('path');\n\n// Read the external script\nconst scriptPath = path.join(__dirname, '../../scripts/extract-message-data.js');\nconst scriptContent = fs.readFileSync(scriptPath, 'utf8');\n\n// Execute the script\nconst extractFunction = new Function('input', '$', scriptContent);\nreturn extractFunction($input.first().json, $);"
-      },
-      "id": "4f4e6b5a-1234-5678-abcd-extract12345",
-      "name": "Extract Message Data",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [900, 240]
-    },
-    {
-      "parameters": {
-        "conditions": {
-          "options": {
             "caseSensitive": true,
             "leftValue": "",
             "typeValidation": "strict"
           },
           "conditions": [
             {
-              "id": "is-property",
-              "leftValue": "={{ $json.isPropertyRelated }}",
-              "rightValue": true,
+              "id": "image",
+              "leftValue": "={{ $json.messageType }}",
+              "rightValue": "image",
               "operator": {
-                "type": "boolean",
+                "type": "string",
                 "operation": "equals"
               }
             }
@@ -105,318 +48,165 @@
         },
         "options": {}
       },
-      "id": "5f5e6b5a-1234-5678-abcd-isprop12345",
-      "name": "Is Property Related?",
+      "id": "check-type",
+      "name": "Has Image?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
-      "position": [1120, 240]
+      "position": [680, 300]
     },
     {
       "parameters": {
-        "method": "POST",
-        "url": "=https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={{ $env.GEMINI_API_KEY }}",
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={\n  \"contents\": [{\n    \"parts\": [{\n      \"text\": \"Kamu adalah asisten yang mengekstrak informasi properti dari pesan WhatsApp dalam bahasa Indonesia.\\n\\nAnalisis pesan berikut dan ekstrak informasi properti. Kembalikan HANYA dalam format JSON yang valid, tanpa markdown, tanpa backticks, tanpa penjelasan lain.\\n\\nPesan:\\n{{ $json.messageText }}\\n\\n{{ $json.hasUrl ? 'URL ditemukan: ' + $json.urls.join(', ') : '' }}\\n\\nKembalikan JSON dengan struktur ini (isi dengan string kosong jika tidak ada info):\\n{\\n  \\\"property_name\\\": \\\"\\\",\\n  \\\"developer\\\": \\\"\\\",\\n  \\\"lb\\\": \\\"\\\",\\n  \\\"lt\\\": \\\"\\\",\\n  \\\"bedrooms\\\": \\\"\\\",\\n  \\\"bathrooms\\\": \\\"\\\",\\n  \\\"price\\\": \\\"\\\",\\n  \\\"dp\\\": \\\"\\\",\\n  \\\"monthly\\\": \\\"\\\",\\n  \\\"video_url\\\": \\\"\\\",\\n  \\\"location\\\": \\\"\\\",\\n  \\\"notes\\\": \\\"\\\"\\n}\\n\\nPetunjuk ekstraksi:\\n- LB = Luas Bangunan (dalam m2)\\n- LT = Luas Tanah (dalam m2), kadang ditulis dimensi seperti 6x12\\n- Kamar Tidur/KT = bedrooms (angka saja)\\n- Kamar Mandi/KM = bathrooms (angka saja)\\n- Harga/Harga Jual/Price = price (format Rupiah lengkap)\\n- DP/Down Payment/Uang Muka = dp\\n- Cicilan/Angsuran = monthly\\n- Link TikTok/YouTube/Instagram = video_url\\n- Nama cluster/perumahan/type = property_name\\n- Nama developer/pengembang = developer\\n- Subsidi, promo, free PPN = masukkan ke notes\"\n    }]\n  }],\n  \"generationConfig\": {\n    \"temperature\": 0.1,\n    \"maxOutputTokens\": 1024\n  }\n}"
+        "modelId": {
+          "__rl": true,
+          "value": "models/gemini-2.5-flash",
+          "mode": "list"
+        },
+        "promptType": "define",
+        "text": "=Analyze this property listing image and extract information. Return ONLY valid JSON with these fields: type (string), rooms (number), bathrooms (number), land_size (number in sqm), building_size (number in sqm), price (number), location (string), features (array of strings). If info not visible, use null.\n\nImage caption/text if any: {{ $json.text }}"
       },
-      "id": "6f6e6b5a-1234-5678-abcd-gemini12345",
-      "name": "Gemini AI Extract",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
-      "position": [1340, 180]
+      "id": "gemini-vision",
+      "name": "Gemini Vision",
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [900, 200],
+      "credentials": {
+        "googlePalmApi": {
+          "id": "YOUR_GEMINI_CREDENTIAL_ID",
+          "name": "Google Gemini API"
+        }
+      }
     },
     {
       "parameters": {
-        "jsCode": "// Load external script for parsing Gemini response\nconst fs = require('fs');\nconst path = require('path');\n\n// Read the external script\nconst scriptPath = path.join(__dirname, '../../scripts/parse-gemini-response.js');\nconst scriptContent = fs.readFileSync(scriptPath, 'utf8');\n\n// Execute the script\nconst parseFunction = new Function('input', '$', scriptContent);\nreturn parseFunction($input.first().json, $);"
+        "modelId": {
+          "__rl": true,
+          "value": "models/gemini-2.5-flash",
+          "mode": "list"
+        },
+        "promptType": "define",
+        "text": "=Extract property information from this Indonesian property listing and return ONLY valid JSON with these exact fields: type (string), rooms (number), bathrooms (number), land_size (number in sqm), building_size (number in sqm), price (number), location (string), features (array of strings). If a field is not mentioned, use null.\n\nMessage: {{ $json.text }}"
       },
-      "id": "7f7e6b5a-1234-5678-abcd-parse12345",
-      "name": "Parse Gemini Response",
+      "id": "gemini-text",
+      "name": "Gemini Text",
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [900, 400],
+      "credentials": {
+        "googlePalmApi": {
+          "id": "YOUR_GEMINI_CREDENTIAL_ID",
+          "name": "Google Gemini API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const text = $input.item.json.text;\nconst parseInput = $('Parse Input').item.json;\n\n// Extract JSON from the response\nconst jsonMatch = text.match(/\\{[\\s\\S]*\\}/);\nconst data = jsonMatch ? JSON.parse(jsonMatch[0]) : {};\n\nreturn [{\n  json: {\n    date: new Date(parseInput.timestamp * 1000).toISOString().split('T')[0],\n    time: new Date(parseInput.timestamp * 1000).toTimeString().split(' ')[0],\n    sender: parseInput.sender,\n    group: parseInput.group,\n    message_type: parseInput.messageType,\n    media_url: parseInput.mediaUrl || '',\n    raw_message: parseInput.text,\n    type: data.type || '',\n    rooms: data.rooms || 0,\n    bathrooms: data.bathrooms || 0,\n    land_size: data.land_size || 0,\n    building_size: data.building_size || 0,\n    price: data.price || 0,\n    location: data.location || '',\n    features: Array.isArray(data.features) ? data.features.join(', ') : ''\n  }\n}];"
+      },
+      "id": "parse-response",
+      "name": "Parse Response",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1560, 180]
+      "position": [1120, 300]
     },
     {
       "parameters": {
         "operation": "append",
         "documentId": {
           "__rl": true,
-          "value": "YOUR_GOOGLE_SHEET_ID_HERE",
-          "mode": "id"
+          "value": "",
+          "mode": "list"
         },
         "sheetName": {
           "__rl": true,
-          "value": "Properties",
-          "mode": "list",
-          "cachedResultName": "Properties"
+          "value": "Sheet1",
+          "mode": "list"
         },
         "columns": {
-          "mappingMode": "defineBelow",
-          "value": {
-            "Timestamp": "={{ $json.timestamp }}",
-            "Date": "={{ $json.date }}",
-            "Sender": "={{ $json.sender }}",
-            "Property Name": "={{ $json.property_name }}",
-            "Developer": "={{ $json.developer }}",
-            "LB (m2)": "={{ $json.lb }}",
-            "LT (m2)": "={{ $json.lt }}",
-            "Bedrooms": "={{ $json.bedrooms }}",
-            "Bathrooms": "={{ $json.bathrooms }}",
-            "Price": "={{ $json.price }}",
-            "DP": "={{ $json.dp }}",
-            "Monthly": "={{ $json.monthly }}",
-            "Video URL": "={{ $json.video_url }}",
-            "Location": "={{ $json.location }}",
-            "Notes": "={{ $json.notes }}"
-          }
+          "mappingMode": "autoMapInputData"
         },
         "options": {}
       },
-      "id": "8f8e6b5a-1234-5678-abcd-sheets12345",
-      "name": "Save to Google Sheets",
+      "id": "google-sheets",
+      "name": "Google Sheets",
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.4,
-      "position": [1780, 180]
-    },
-    {
-      "parameters": {
-        "rule": {
-          "interval": [
-            {
-              "field": "cronExpression",
-              "expression": "0 20 * * *"
-            }
-          ]
+      "position": [1340, 300],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "YOUR_GOOGLE_SHEETS_CREDENTIAL_ID",
+          "name": "Google Sheets account"
         }
-      },
-      "id": "9f9e6b5a-1234-5678-abcd-daily12345",
-      "name": "Daily 8PM Trigger",
-      "type": "n8n-nodes-base.scheduleTrigger",
-      "typeVersion": 1.2,
-      "position": [240, 560]
-    },
-    {
-      "parameters": {
-        "operation": "read",
-        "documentId": {
-          "__rl": true,
-          "value": "YOUR_GOOGLE_SHEET_ID_HERE",
-          "mode": "id"
-        },
-        "sheetName": {
-          "__rl": true,
-          "value": "Properties",
-          "mode": "list",
-          "cachedResultName": "Properties"
-        },
-        "options": {}
-      },
-      "id": "af1e6b5a-1234-5678-abcd-read12345",
-      "name": "Read All Properties",
-      "type": "n8n-nodes-base.googleSheets",
-      "typeVersion": 4.4,
-      "position": [460, 560]
-    },
-    {
-      "parameters": {
-        "jsCode": "// Load external script for creating recap message\nconst fs = require('fs');\nconst path = require('path');\n\n// Read the external script\nconst scriptPath = path.join(__dirname, '../../scripts/create-recap-message.js');\nconst scriptContent = fs.readFileSync(scriptPath, 'utf8');\n\n// Execute the script\nconst recapFunction = new Function('input', '$', scriptContent);\nreturn recapFunction($input.all(), $);"
-      },
-      "id": "bf2e6b5a-1234-5678-abcd-recap12345",
-      "name": "Create Recap Message",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [680, 560]
-    },
-    {
-      "parameters": {
-        "conditions": {
-          "options": {
-            "caseSensitive": true,
-            "leftValue": "",
-            "typeValidation": "strict"
-          },
-          "conditions": [
-            {
-              "id": "has-data",
-              "leftValue": "={{ $json.hasData }}",
-              "rightValue": true,
-              "operator": {
-                "type": "boolean",
-                "operation": "equals"
-              }
-            }
-          ],
-          "combinator": "and"
-        },
-        "options": {}
-      },
-      "id": "cf3e6b5a-1234-5678-abcd-check12345",
-      "name": "Has Data to Recap?",
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 2,
-      "position": [900, 560]
-    },
-    {
-      "parameters": {
-        "method": "POST",
-        "url": "http://evolution:8080/message/sendText/house-bot",
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            {
-              "name": "apikey",
-              "value": "={{ $env.EVOLUTION_API_KEY }}"
-            },
-            {
-              "name": "Content-Type",
-              "value": "application/json"
-            }
-          ]
-        },
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={\n  \"number\": \"YOUR_GROUP_JID_HERE\",\n  \"text\": {{ JSON.stringify($json.message) }}\n}"
-      },
-      "id": "df4e6b5a-1234-5678-abcd-send12345",
-      "name": "Send Recap to WhatsApp",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
-      "position": [1120, 500]
-    },
-    {
-      "parameters": {},
-      "id": "ef5e6b5a-1234-5678-abcd-noop12345",
-      "name": "No Data Today",
-      "type": "n8n-nodes-base.noOp",
-      "typeVersion": 1,
-      "position": [1120, 620]
+      }
     }
   ],
   "connections": {
-    "WhatsApp Webhook": {
+    "Webhook": {
       "main": [
         [
           {
-            "node": "Filter Group Only",
+            "node": "Parse Input",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Filter Group Only": {
+    "Parse Input": {
       "main": [
         [
           {
-            "node": "Has Message Content",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        []
-      ]
-    },
-    "Has Message Content": {
-      "main": [
-        [
-          {
-            "node": "Extract Message Data",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        []
-      ]
-    },
-    "Extract Message Data": {
-      "main": [
-        [
-          {
-            "node": "Is Property Related?",
+            "node": "Has Image?",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Is Property Related?": {
+    "Has Image?": {
       "main": [
         [
           {
-            "node": "Gemini AI Extract",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        []
-      ]
-    },
-    "Gemini AI Extract": {
-      "main": [
-        [
-          {
-            "node": "Parse Gemini Response",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Parse Gemini Response": {
-      "main": [
-        [
-          {
-            "node": "Save to Google Sheets",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Daily 8PM Trigger": {
-      "main": [
-        [
-          {
-            "node": "Read All Properties",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Read All Properties": {
-      "main": [
-        [
-          {
-            "node": "Create Recap Message",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Create Recap Message": {
-      "main": [
-        [
-          {
-            "node": "Has Data to Recap?",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Has Data to Recap?": {
-      "main": [
-        [
-          {
-            "node": "Send Recap to WhatsApp",
+            "node": "Gemini Vision",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "No Data Today",
+            "node": "Gemini Text",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gemini Vision": {
+      "main": [
+        [
+          {
+            "node": "Parse Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gemini Text": {
+      "main": [
+        [
+          {
+            "node": "Parse Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Response": {
+      "main": [
+        [
+          {
+            "node": "Google Sheets",
             "type": "main",
             "index": 0
           }
@@ -425,11 +215,6 @@
     }
   },
   "settings": {
-    "executionOrder": "v1",
-    "timezone": "Asia/Jakarta"
-  },
-  "staticData": null,
-  "tags": [],
-  "triggerCount": 2,
-  "pinData": {}
+    "executionOrder": "v1"
+  }
 }
