@@ -28,12 +28,11 @@ curl -sX POST http://localhost:8080/instance/create \
   -H "apikey: $EVOLUTION_API_KEY" \
   -d '{
     "instanceName": "house-bot",
-    "qrcode": true
+    "qrcode": true,
+    "integration": "WHATSAPP-BAILEYS"
   }'
 
 sleep 5
-echo -e "\n\nGet QR code (base64 image):"
-echo "curl -s http://localhost:8080/instance/qrcode/house-bot -H 'apikey: $EVOLUTION_API_KEY'"
-echo -e "\nOr connect with pairing code:"
-echo "curl -sX POST http://localhost:8080/instance/mobile/house-bot -H 'apikey: $EVOLUTION_API_KEY' -H 'Content-Type: application/json' -d '{\"number\":\"YOUR_PHONE_WITH_COUNTRY_CODE\"}'"
+echo -e "\n\nGet QR code:"
+echo "curl -s http://localhost:8080/instance/connect/house-bot -H 'apikey: $EVOLUTION_API_KEY'"
 echo -e "\nn8n: http://localhost:5678 (admin/check docker-compose.yml for password)"
