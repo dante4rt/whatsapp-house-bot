@@ -191,13 +191,13 @@ Check Google Sheets - there should be a new row!
 
 ## Summary - What Needs to be Replaced
 
-| Placeholder | Example |
-| ------------- | -------- |
-| YOUR_VPS_IP | 103.123.456.789 |
-| YOUR_EVOLUTION_API_KEY | abc123def456... |
-| YOUR_GEMINI_API_KEY | AIzaSy... |
+| Placeholder               | Example                 |
+| ------------------------- | ----------------------- |
+| YOUR_VPS_IP               | 103.123.456.789         |
+| YOUR_EVOLUTION_API_KEY    | abc123def456...         |
+| YOUR_GEMINI_API_KEY       | AIzaSy...               |
 | YOUR_GOOGLE_SHEET_ID_HERE | 1BxiMVs0XRA5nFMdKvBd... |
-| YOUR_GROUP_JID_HERE | <120363123456789@g.us> |
+| YOUR_GROUP_JID_HERE       | <120363123456789@g.us>  |
 
 ---
 

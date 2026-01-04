@@ -14,8 +14,7 @@ whatsapp-house-bot/
 │   ├── parse-gemini-response.js     # Parse AI responses
 │   └── create-recap-message.js     # Generate daily summaries
 ├── docker-compose.yml              # Docker service configuration
-├── n8n-workflow.json              # Original n8n workflow (with embedded JS)
-├── n8n-workflow-refactored.json   # Refactored workflow (references external JS)
+├── n8n-workflow.json              # n8n workflow (references external JS files)
 ├── setup.sh                       # Automated setup script
 ├── git_setup.sh                   # Git initialization script
 ├── .env.example                   # Environment variables template
@@ -34,7 +33,7 @@ whatsapp-house-bot/
 
 - JavaScript code extracted from `n8n-workflow.json` to separate `.js` files
 - Code is now maintainable, testable, and versionable
-- Created `n8n-workflow-refactored.json` that references external files
+- Main `n8n-workflow.json` now references external JavaScript files
 
 ### 3. Improved Structure
 
