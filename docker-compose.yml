@@ -37,7 +37,7 @@ services:
   # Evolution API - WhatsApp Gateway
   # ============================================
   evolution:
-    image: atendai/evolution-api:v2.2.0
+    image: atendai/evolution-api:homolog
     container_name: evolution-api
     restart: always
     ports:
