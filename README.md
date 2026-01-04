@@ -2,6 +2,9 @@
 
 Monitor WhatsApp groups for property listings → forward to webhook → AI extracts to Google Sheets.
 
+> [!NOTE]
+> This bot uses Baileys (WhatsApp Web API). Your WhatsApp account needs to scan a QR code on first setup.
+
 ## Quick Start
 
 ```bash
@@ -35,6 +38,9 @@ docker compose down -v && docker compose up -d --build  # Reset auth
 
 ## n8n Workflow Setup
 
+> [!IMPORTANT]
+> You need a Google Gemini API key and Google Sheets access to use the included workflow.
+
 1. Import `n8n-workflow.json` into n8n
 2. Configure credentials:
    - **Google Gemini API** - for AI extraction
@@ -42,6 +48,13 @@ docker compose down -v && docker compose up -d --build  # Reset auth
 3. Set your Google Sheet document ID in the "Google Sheets" node
 4. Activate workflow → copy webhook URL → paste in `.env` as `WEBHOOK_URL`
 
-**Flow:** Webhook → Parse → Image? → Gemini AI → Parse JSON → Google Sheets
+**Flow:**
 
-**Extracted fields:** type, rooms, bathrooms, land_size, building_size, price, location, features
+Webhook → Parse → Image? → Gemini AI → Parse JSON → Google Sheets
+
+**Extracted fields:**
+
+type, rooms, bathrooms, land_size, building_size, price, location, features
+
+> [!TIP]
+> The workflow uses Gemini 2.5 Flash for cost-effective processing. You can upgrade to Gemini Pro for better accuracy.
