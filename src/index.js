@@ -21,7 +21,12 @@ async function processQueue() {
   if (messageQueue.length === 0) return;
 
   const webhookUrl = process.env.WEBHOOK_URL;
-  if (!webhookUrl) return;
+  if (!webhookUrl) {
+    console.log(
+      `⚠️  No WEBHOOK_URL set - ${messageQueue.length} messages pending but not sent`
+    );
+    return;
+  }
 
   const messages = [...messageQueue];
   messageQueue.length = 0;
